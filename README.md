@@ -1,13 +1,9 @@
 # aframe-bedroom3d
 
 Demo
-<<<<<<< HEAD
+
 ![aframe 3d bedroom model](assets/img/3dbedroom-ar.jpeg)
 
-=======
-![index0 > NeilArmstrong på mobil](assets/img/demoAR_NeilArmstrong_2.png) <br>
-![index > adamHeadAR på mobil](assets/img/adamHeadAR.png)
->>>>>>> 08efa76daaa7856a439da559e40e375d24a838d5
 ***
 
 
