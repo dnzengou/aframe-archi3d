@@ -1,0 +1,43 @@
+{
+  "$schema": "https://agentsjson.org/schema/v0.1.json",
+  "name": "ArchiAR",
+  "description": "Browser-based 3D and marker-AR preview for GLB/GLTF models. Compose a shareable preview URL for any CORS-enabled model.",
+  "homepage": "https://dnzengou.github.io/aframe-archi3d/",
+  "repository": "https://github.com/dnzengou/aframe-archi3d",
+  "contact": "https://desiredsolutions.me",
+  "license": "MIT",
+  "provenance": {
+    "author": "Desired Solutions",
+    "verified_by": "github.com/dnzengou/aframe-archi3d",
+    "built_with": ["A-Frame 1.5", "AR.js 3.4"]
+  },
+  "actions": [
+    {
+      "name": "preview_model",
+      "description": "Open a GLB/GLTF model in a browser-based 3D/AR previewer.",
+      "method": "GET",
+      "url_template": "https://dnzengou.github.io/aframe-archi3d/?model={model_url}&mode={mode}",
+      "parameters": {
+        "model_url": {
+          "type": "string",
+          "format": "uri",
+          "required": true,
+          "description": "Absolute https URL of a GLB or GLTF file with permissive CORS."
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["3d", "ar"],
+          "default": "3d",
+          "required": false,
+          "description": "Start mode. 'ar' requests webcam marker-AR; '3d' is the default drag-to-rotate preview."
+        }
+      },
+      "returns": "An HTML page that renders the model. No API response body; interactive viewer only."
+    }
+  ],
+  "capabilities": {
+    "input_formats": ["model/gltf-binary", "model/gltf+json"],
+    "requires": ["modern-browser", "camera-for-ar"],
+    "privacy": "No tracking. Camera stream stays on-device."
+  }
+}

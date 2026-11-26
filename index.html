@@ -1,28 +1,427 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-  <title>
-    Aframe 3D archi
-  </title>
-  <meta name="description" content="aframe SU demo">
-  <script src="https://aframe.io/releases/0.7.0/aframe.min.js"></script>
-  
-  <script src="https://jeromeetienne.github.io/AR.js/aframe/build/aframe-ar.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0d10">
+  <title>ArchiAR — Preview 3D & AR architecture models in the browser</title>
+
+  <meta name="description" content="ArchiAR turns a GLB/GLTF file into a browser-based 3D and AR preview in seconds. Marker AR, drag-to-rotate on desktop, device-motion on mobile — no app install.">
+  <link rel="canonical" href="https://dnzengou.github.io/aframe-archi3d/">
+
+  <!-- Open Graph / social -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="ArchiAR — Browser-based 3D & AR previews for architecture">
+  <meta property="og:description" content="Drop a GLB, get a shareable AR link. Marker AR, drag-to-rotate, device motion. No app install.">
+  <meta property="og:image" content="assets/img/3dbedroom-ar.jpeg">
+  <meta property="og:url" content="https://dnzengou.github.io/aframe-archi3d/">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <!-- Agent-SEO / GEO: machine-readable claim about what this page does -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://dnzengou.github.io/aframe-archi3d/#app",
+        "name": "ArchiAR",
+        "applicationCategory": "DesignApplication",
+        "operatingSystem": "Web (Chromium, Safari, Firefox)",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+        "description": "Browser-based 3D and marker-AR previewer for GLB/GLTF architecture models.",
+        "featureList": [
+          "GLB/GLTF 3D preview",
+          "Marker AR (Hiro) via webcam",
+          "Drag-to-rotate on desktop, device motion on mobile",
+          "Load your own model via ?model= URL parameter",
+          "No install, works on modern browsers"
+        ],
+        "author": { "@type": "Organization", "name": "Desired Solutions", "url": "https://desiredsolutions.me" }
+      },
+      {
+        "@type": "3DModel",
+        "name": "Voxel neon city (demo scene)",
+        "encodingFormat": "model/gltf-binary",
+        "contentUrl": "assets/Voxel-Art-neon-city-new.glb",
+        "license": "https://creativecommons.org/licenses/by/4.0/",
+        "creditText": "Demo asset bundled with the ArchiAR demo"
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {"@type":"Question","name":"Does ArchiAR need an app?","acceptedAnswer":{"@type":"Answer","text":"No. It runs in a modern browser. For AR, allow camera access and point your camera at a printed Hiro marker."}},
+          {"@type":"Question","name":"What file formats are supported?","acceptedAnswer":{"@type":"Answer","text":"GLB and GLTF. Pass a URL as ?model=... to load any model hosted with CORS enabled."}},
+          {"@type":"Question","name":"Can I use this for client reviews?","acceptedAnswer":{"@type":"Answer","text":"Yes. Share the URL with a ?model= parameter; clients open it on phone or desktop. For production projects, book a sprint at desiredsolutions.me."}}
+        ]
+      }
+    ]
+  }
+  </script>
+
+  <!-- Modern A-Frame + AR.js -->
+  <script src="https://cdn.jsdelivr.net/npm/aframe@1.5.0/dist/aframe-master.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
+
+  <style>
+    :root {
+      --bg: #0b0d10;
+      --panel: rgba(16,18,22,0.88);
+      --ink: #e8ecef;
+      --muted: #9aa3ad;
+      --accent: #7cf6c4;
+      --accent-ink: #042019;
+      --danger: #ff6b6b;
+      --radius: 14px;
+      --shadow: 0 10px 40px rgba(0,0,0,0.45);
+      --font: system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
+    }
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) {
+        --bg: #f6f7f9;
+        --panel: rgba(255,255,255,0.92);
+        --ink: #0b0d10;
+        --muted: #5b6471;
+        --accent: #0a8f6a;
+        --accent-ink: #ffffff;
+        --shadow: 0 10px 30px rgba(10,20,30,0.12);
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: var(--font); height: 100%; overflow: hidden; }
+    a { color: var(--accent); }
+
+    /* Scene fills viewport */
+    a-scene { position: fixed; inset: 0; width: 100vw; height: 100vh; }
+
+    /* Top bar */
+    .topbar {
+      position: fixed; top: env(safe-area-inset-top, 0); left: 0; right: 0;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; gap: 10px; z-index: 20;
+      background: linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0));
+      pointer-events: none;
+    }
+    .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; letter-spacing: 0.2px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); pointer-events: auto; }
+    .brand-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+    .topbar .actions { display: flex; gap: 8px; pointer-events: auto; }
+    .btn {
+      appearance: none; border: 0; cursor: pointer; font: inherit;
+      padding: 8px 12px; border-radius: 999px; background: var(--panel); color: var(--ink);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      box-shadow: var(--shadow); transition: transform .15s ease, background .15s ease;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn.primary { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+    .btn[aria-pressed="true"] { outline: 2px solid var(--accent); }
+
+    /* Onboarding overlay */
+    .onboarding {
+      position: fixed; inset: 0; z-index: 50;
+      background: radial-gradient(1200px 800px at 50% 30%, rgba(124,246,196,0.08), rgba(0,0,0,0.75));
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      display: grid; place-items: center; padding: 20px;
+    }
+    .onboarding[hidden] { display: none; }
+    .card {
+      width: min(560px, 92vw); background: var(--panel); border-radius: var(--radius);
+      box-shadow: var(--shadow); padding: 22px 22px 18px; color: var(--ink);
+    }
+    .card h1 { margin: 0 0 6px; font-size: 1.35rem; }
+    .card p { margin: 0 0 14px; color: var(--muted); line-height: 1.5; }
+    .steps { display: grid; gap: 10px; margin: 10px 0 16px; }
+    .step { display: flex; gap: 12px; align-items: flex-start; }
+    .step .n { flex: 0 0 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-weight: 700; display: grid; place-items: center; font-size: 0.85rem; }
+    .step .t { font-size: 0.95rem; line-height: 1.4; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: space-between; align-items: center; }
+    .muted { color: var(--muted); font-size: 0.85rem; }
+
+    /* AI companion */
+    .companion {
+      position: fixed; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom, 0)); z-index: 30;
+      display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
+      max-width: min(340px, 92vw);
+    }
+    .bubble {
+      background: var(--panel); color: var(--ink); padding: 12px 14px; border-radius: 14px 14px 4px 14px;
+      box-shadow: var(--shadow); font-size: 0.92rem; line-height: 1.4;
+      animation: pop .25s ease;
+    }
+    .bubble strong { color: var(--accent); }
+    .bubble .bar { height: 4px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-top: 8px; overflow: hidden; }
+    .bubble .bar > span { display: block; height: 100%; background: var(--accent); width: 0; transition: width .4s ease; }
+    .companion-fab {
+      width: 48px; height: 48px; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
+      display: grid; place-items: center; box-shadow: var(--shadow); cursor: pointer; border: 0;
+      font-size: 1.4rem;
+    }
+    @keyframes pop { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
+
+    /* Mode toggle bottom-left */
+    .modebar {
+      position: fixed; left: 14px; bottom: calc(14px + env(safe-area-inset-bottom, 0)); z-index: 30;
+      display: flex; gap: 8px;
+    }
+    .credibility {
+      position: fixed; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom, 0)); transform: translateX(-50%);
+      z-index: 25; display: flex; gap: 6px; font-size: 0.75rem; color: var(--muted);
+      background: var(--panel); padding: 6px 10px; border-radius: 999px; box-shadow: var(--shadow);
+      pointer-events: auto;
+    }
+    .credibility .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+
+    /* Hide credibility on tiny screens to avoid clutter */
+    @media (max-width: 480px) { .credibility { display: none; } }
+
+    /* Minimal CTA sheet */
+    details.cta {
+      position: fixed; right: 14px; top: calc(60px + env(safe-area-inset-top, 0)); z-index: 25;
+      background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow);
+      max-width: min(300px, 90vw); padding: 10px 14px;
+    }
+    details.cta summary { cursor: pointer; font-weight: 600; list-style: none; }
+    details.cta summary::-webkit-details-marker { display: none; }
+    details.cta p { margin: 8px 0; color: var(--muted); font-size: 0.88rem; line-height: 1.45; }
+    details.cta a.btn { display: inline-block; text-decoration: none; }
+
+    /* Loading toast */
+    .toast {
+      position: fixed; top: calc(14px + env(safe-area-inset-top, 0)); left: 50%; transform: translateX(-50%);
+      background: var(--panel); color: var(--ink); padding: 8px 14px; border-radius: 999px;
+      box-shadow: var(--shadow); z-index: 60; font-size: 0.88rem;
+    }
+    .toast[hidden] { display: none; }
+
+    /* Keyboard focus */
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  </style>
 </head>
-
 <body>
-  <a-scene embedded arjs>
-    <a-entity scale=".2 .2 .2">
-      <a-entity gltf-model="assets/Voxel-Art-neon-city-new.glb" scale="0.06 0.06 0.06" rotation="0 45 0" position="0 0 -0.6">
-        <!-- src="assets/bedroom_test.glb" -->
-		<a-animation attribute="rotation" to="45 360 0" dur="96000" repeat="indefinite" easing="linear"></a-animation>
-      <!--<a-entity gltf-model="assets/animatedbox.gltf"></a-entity>
-      <a-sky color="#ECECEC"></a-sky>-->
-    </a-entity>
-    <a-marker-camera preset='hiro'></a-marker-camera>
-  </a-scene>
-  <script src="app.js"></script>
-</body>
 
+  <!-- Top bar -->
+  <header class="topbar" role="banner">
+    <div class="brand"><span class="brand-dot" aria-hidden="true"></span><span>ArchiAR</span></div>
+    <div class="actions">
+      <button class="btn" id="btn-mode" aria-pressed="false" title="Toggle between 3D preview and marker AR">3D preview</button>
+      <button class="btn" id="btn-help" title="Open onboarding">?</button>
+    </div>
+  </header>
+
+  <!-- Onboarding overlay -->
+  <div class="onboarding" id="onboarding" role="dialog" aria-modal="true" aria-labelledby="ob-title">
+    <div class="card">
+      <h1 id="ob-title">Preview your model in 3D & AR</h1>
+      <p>ArchiAR runs in your browser — no install. Here is the fastest path to a shareable preview.</p>
+      <ol class="steps" aria-label="Three steps to get started">
+        <li class="step"><span class="n">1</span><span class="t"><strong>Explore</strong> the demo in <em>3D preview</em>: drag to rotate on desktop, tilt your phone on mobile.</span></li>
+        <li class="step"><span class="n">2</span><span class="t"><strong>Switch to AR</strong>. Print a <a href="https://stemkoski.github.io/AR-Examples/markers/hiro.png" target="_blank" rel="noopener">Hiro marker</a> or show it on another screen, then point your camera.</span></li>
+        <li class="step"><span class="n">3</span><span class="t"><strong>Load your model</strong>: append <code>?model=URL</code> to this page (GLB/GLTF, CORS-enabled).</span></li>
+      </ol>
+      <div class="row">
+        <span class="muted">Camera is used only for AR, locally on your device.</span>
+        <button class="btn primary" id="ob-start">Start</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA sheet -->
+  <details class="cta">
+    <summary>Ship this for a client →</summary>
+    <p>We build browser-AR tools, product configurators, and WebXR showrooms as fixed-scope sprints.</p>
+    <a class="btn primary" href="https://desiredsolutions.me" target="_blank" rel="noopener">Book a sprint</a>
+  </details>
+
+  <!-- Mode bar -->
+  <div class="modebar">
+    <button class="btn" id="btn-reset" title="Reset view">Reset view</button>
+  </div>
+
+  <!-- Credibility signal -->
+  <div class="credibility" title="Open source, verifiable: see repository">
+    <span class="dot" aria-hidden="true"></span>
+    <a href="https://github.com/dnzengou/aframe-archi3d" target="_blank" rel="noopener" style="color:inherit; text-decoration:none;">Open source · verifiable build</a>
+  </div>
+
+  <!-- AI Companion -->
+  <aside class="companion" aria-live="polite">
+    <div class="bubble" id="companion-bubble" hidden></div>
+    <button class="companion-fab" id="btn-companion" title="Tips from your AR guide" aria-label="AR guide">✦</button>
+  </aside>
+
+  <!-- Toast -->
+  <div class="toast" id="toast" hidden></div>
+
+  <!-- 3D / AR scene -->
+  <a-scene
+    id="scene"
+    renderer="colorManagement: true; physicallyCorrectLights: true; antialias: true;"
+    vr-mode-ui="enabled: false"
+    embedded
+    loading-screen="enabled: false">
+
+    <a-assets timeout="15000">
+      <a-asset-item id="model-demo" src="assets/Voxel-Art-neon-city-new.glb"></a-asset-item>
+    </a-assets>
+
+    <!-- 3D mode rig (default) -->
+    <a-entity id="rig-3d">
+      <a-sky color="#0b0d10"></a-sky>
+      <a-light type="ambient" color="#ffffff" intensity="0.6"></a-light>
+      <a-light type="directional" color="#ffffff" intensity="0.8" position="2 4 3"></a-light>
+      <a-entity
+        id="model"
+        gltf-model="#model-demo"
+        scale="0.5 0.5 0.5"
+        position="0 0 -2.2"
+        rotation="0 45 0"
+        animation="property: rotation; to: 0 405 0; dur: 24000; loop: true; easing: linear">
+      </a-entity>
+      <a-entity camera look-controls="reverseMouseDrag: false" wasd-controls="enabled: false" position="0 1.2 0"></a-entity>
+    </a-entity>
+
+    <!-- AR mode rig (hidden initially) -->
+    <a-entity id="rig-ar" visible="false">
+      <a-marker preset="hiro">
+        <a-entity
+          id="model-ar"
+          gltf-model="#model-demo"
+          scale="0.3 0.3 0.3"
+          rotation="0 0 0"
+          animation="property: rotation; to: 0 360 0; dur: 20000; loop: true; easing: linear">
+        </a-entity>
+      </a-marker>
+      <a-entity camera></a-entity>
+    </a-entity>
+  </a-scene>
+
+  <script>
+  (() => {
+    'use strict';
+
+    const qs = new URLSearchParams(location.search);
+    const modelUrl = qs.get('model');
+    const startMode = (qs.get('mode') || '3d').toLowerCase() === 'ar' ? 'ar' : '3d';
+
+    const scene = document.getElementById('scene');
+    const rig3d = document.getElementById('rig-3d');
+    const rigAR = document.getElementById('rig-ar');
+    const model3d = document.getElementById('model');
+    const modelAR = document.getElementById('model-ar');
+    const btnMode = document.getElementById('btn-mode');
+    const btnReset = document.getElementById('btn-reset');
+    const btnHelp = document.getElementById('btn-help');
+    const onboarding = document.getElementById('onboarding');
+    const obStart = document.getElementById('ob-start');
+    const toast = document.getElementById('toast');
+    const bubble = document.getElementById('companion-bubble');
+    const btnCompanion = document.getElementById('btn-companion');
+
+    let mode = '3d';
+    let arActivated = false;
+
+    // Allow ?model=URL — basic http(s) allowlist to avoid javascript: etc.
+    function setCustomModel(url) {
+      try {
+        const u = new URL(url, location.href);
+        if (!/^https?:$/.test(u.protocol)) throw new Error('bad protocol');
+        model3d.setAttribute('gltf-model', u.href);
+        modelAR.setAttribute('gltf-model', u.href);
+        showToast('Loading your model…');
+      } catch (e) {
+        showToast('Ignored invalid model URL');
+      }
+    }
+    if (modelUrl) setCustomModel(modelUrl);
+
+    // Loading / error feedback
+    scene.addEventListener('model-loaded', () => { hideToast(); nudge('nice', 'Model loaded. Try switching to <strong>AR</strong>.'); });
+    scene.addEventListener('model-error', () => { showToast('Model failed to load (CORS or format?)', 4000); });
+
+    // Mode switching
+    function setMode(next) {
+      mode = next;
+      if (mode === 'ar') {
+        // Lazy-activate AR components (need secure context + camera)
+        rig3d.setAttribute('visible', 'false');
+        rigAR.setAttribute('visible', 'true');
+        if (!arActivated) {
+          scene.setAttribute('arjs', 'sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3; debugUIEnabled: false;');
+          arActivated = true;
+        }
+        btnMode.textContent = 'AR mode';
+        btnMode.setAttribute('aria-pressed', 'true');
+        nudge('ar', 'Point your camera at a <strong>Hiro marker</strong>. Printed or shown on another screen both work.');
+      } else {
+        rigAR.setAttribute('visible', 'false');
+        rig3d.setAttribute('visible', 'true');
+        btnMode.textContent = '3D preview';
+        btnMode.setAttribute('aria-pressed', 'false');
+      }
+    }
+    btnMode.addEventListener('click', () => setMode(mode === '3d' ? 'ar' : '3d'));
+    btnReset.addEventListener('click', () => {
+      const cam = document.querySelector('#rig-3d [camera]');
+      if (cam) cam.setAttribute('rotation', '0 0 0');
+      model3d.setAttribute('rotation', '0 45 0');
+      nudge('reset', 'View reset.');
+    });
+
+    // Onboarding
+    const seen = localStorage.getItem('archiar.onboarded') === '1';
+    if (seen) onboarding.hidden = true;
+    const dismissOB = () => { onboarding.hidden = true; try { localStorage.setItem('archiar.onboarded', '1'); } catch(_){} };
+    obStart.addEventListener('click', dismissOB);
+    btnHelp.addEventListener('click', () => { onboarding.hidden = false; });
+
+    // Toast helpers
+    let toastTimer = null;
+    function showToast(msg, ms = 2500) {
+      toast.textContent = msg; toast.hidden = false;
+      clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, ms);
+    }
+    function hideToast(){ toast.hidden = true; }
+
+    // AI companion — lightweight rule-based steward.
+    // Not a real LLM call: local, private, deterministic tips that unlock as the user progresses.
+    const tips = {
+      welcome: 'Hey — I\'m your <strong>AR guide</strong>. Drag to rotate, or hit <strong>3D preview</strong> up top to switch to <strong>AR mode</strong>.',
+      ar: 'In AR, look for a <strong>Hiro marker</strong> through your camera. No marker handy? Open it on another screen: <a href="https://stemkoski.github.io/AR-Examples/markers/hiro.png" target="_blank" rel="noopener">hiro.png</a>.',
+      load: 'Have your own GLB? Append <strong>?model=YOUR_URL</strong> to this page. Host must allow CORS.',
+      share: 'Happy with it? The URL (including <code>?model=</code>) is your shareable link.',
+      sprint: 'Need a client-ready viewer with your branding? <a href="https://desiredsolutions.me" target="_blank" rel="noopener">Book a sprint</a>.',
+      nice: 'Model loaded. Try switching to <strong>AR</strong>.',
+      reset: 'View reset.'
+    };
+    function nudge(key, html) {
+      const text = html || tips[key] || '';
+      if (!text) return;
+      bubble.innerHTML = text;
+      bubble.hidden = false;
+    }
+    btnCompanion.addEventListener('click', () => {
+      if (bubble.hidden) { nudge('welcome'); return; }
+      // cycle through tips
+      const order = ['welcome', 'ar', 'load', 'share', 'sprint'];
+      const current = btnCompanion.dataset.i ? parseInt(btnCompanion.dataset.i, 10) : 0;
+      const next = (current + 1) % order.length;
+      btnCompanion.dataset.i = String(next);
+      nudge(order[next]);
+    });
+
+    // First-run companion hint
+    setTimeout(() => { if (!seen) nudge('welcome'); }, 800);
+
+    // Honor ?mode=ar
+    if (startMode === 'ar') setMode('ar');
+
+    // Keyboard shortcuts: m toggles mode, r resets, h help
+    window.addEventListener('keydown', (e) => {
+      if (e.target.closest('input, textarea')) return;
+      if (e.key === 'm' || e.key === 'M') btnMode.click();
+      else if (e.key === 'r' || e.key === 'R') btnReset.click();
+      else if (e.key === 'h' || e.key === 'H' || e.key === '?') btnHelp.click();
+    });
+  })();
+  </script>
+</body>
 </html>

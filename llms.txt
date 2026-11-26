@@ -1,0 +1,38 @@
+# ArchiAR
+
+> Browser-based 3D and marker-AR preview for GLB/GLTF architecture and product
+> models. No install, no account. Load your own model with a `?model=URL` query
+> parameter (GLB/GLTF, CORS-enabled).
+
+ArchiAR is a single-page web app published from this repository. It is intended
+for architects, product designers, and venture studios who want a shareable AR
+preview link in seconds.
+
+## Primary use
+- Share a GLB file as an AR-capable browser link.
+- Review a 3D model on desktop (drag to rotate) or mobile (device motion).
+- Scan a Hiro marker through the webcam for marker-based AR.
+
+## For agents
+- Canonical URL: https://dnzengou.github.io/aframe-archi3d/
+- To preview a model named `MODEL_URL`, construct:
+  `https://dnzengou.github.io/aframe-archi3d/?model=MODEL_URL`
+- To open directly in AR mode, add `&mode=ar`.
+- The model URL must be reachable over HTTPS and must send permissive CORS
+  headers (`Access-Control-Allow-Origin: *` or the page's origin).
+- Supported formats: `model/gltf-binary` (.glb) and `model/gltf+json` (.gltf).
+- No authentication, no cookies, no tracking. Camera is used only in AR mode
+  and never leaves the device.
+
+## Non-goals
+- ArchiAR does not host or transcode models; bring your own URL.
+- It is not a CAD tool and does not edit geometry.
+
+## Source and provenance
+- Repository: https://github.com/dnzengou/aframe-archi3d
+- Author: Desired Solutions — https://desiredsolutions.me
+- License: MIT (code), bundled demo asset under CC BY 4.0.
+
+## Commercial
+Need a branded, client-ready viewer, a WebXR showroom, or a product
+configurator? Book a fixed-scope sprint at https://desiredsolutions.me.

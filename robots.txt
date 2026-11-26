@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+
+# AI/agent crawlers — explicitly welcomed
+User-agent: GPTBot
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: Google-Extended
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: CCBot
+Allow: /
+
+Sitemap: https://dnzengou.github.io/aframe-archi3d/sitemap.xml
